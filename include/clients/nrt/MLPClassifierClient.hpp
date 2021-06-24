@@ -216,9 +216,9 @@ public:
     return OK();
   }
 
-  MessageResult<tuple<string, double>> predictPoint(BufferPtr in)
+  MessageResult<std::tuple<string, double>> predictPoint(BufferPtr in)
   {
-    using ErrorType = tuple<string, double>;
+    using ErrorType = std::tuple<string, double>;
       
     if (!in) return Error<ErrorType>(NoBuffer);
     BufferAdaptor::Access inBuf(in.get());
