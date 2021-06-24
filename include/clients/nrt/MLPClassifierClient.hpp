@@ -216,9 +216,9 @@ public:
     return OK();
   }
 
-  MessageResult<std::tuple<string, double>> predictPoint(BufferPtr in)
+  MessageResult<std::tuple<string, double, double>> predictPoint(BufferPtr in)
   {
-    using ErrorType = std::tuple<string, double>;
+    using ErrorType = std::tuple<string, double, double>;
       
     if (!in) return Error<ErrorType>(NoBuffer);
     BufferAdaptor::Access inBuf(in.get());
@@ -233,7 +233,9 @@ public:
     src = inBuf.samps(0, mAlgorithm.mlp.dims(), 0);
     mAlgorithm.mlp.processFrame(src, dest, 0, layer);
     auto label = mAlgorithm.encoder.decodeOneHot(dest);
-    return std::make_tuple(label, *std::max_element(dest.begin(), dest.end()));
+    double max = *std::max_element(dest.begin(), dest.end());
+    double sum = std::accumulate(dest.begin(), dest.end(), 0.0);
+    return std::make_tuple(label, max, max/sum);
   }
 
   static auto getMessageDescriptors()
