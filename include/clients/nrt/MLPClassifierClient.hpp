@@ -216,14 +216,16 @@ public:
     return OK();
   }
 
-  MessageResult<string> predictPoint(BufferPtr in)
+  MessageResult<tuple<string, double>> predictPoint(BufferPtr in)
   {
-    if (!in) return Error<string>(NoBuffer);
+    using ErrorType = tuple<string, double>;
+      
+    if (!in) return Error<ErrorType>(NoBuffer);
     BufferAdaptor::Access inBuf(in.get());
-    if (!inBuf.exists()) return Error<string>(InvalidBuffer);
+    if (!inBuf.exists()) return Error<ErrorType>(InvalidBuffer);
     if (inBuf.numFrames() != mAlgorithm.mlp.dims())
-      return Error<string>(WrongPointSize);
-    if (!mAlgorithm.mlp.trained()) return Error<string>(NoDataFitted);
+      return Error<ErrorType>(WrongPointSize);
+    if (!mAlgorithm.mlp.trained()) return Error<ErrorType>(NoDataFitted);
 
     index      layer = mAlgorithm.mlp.size();
     RealVector src(mAlgorithm.mlp.dims());
@@ -231,7 +233,7 @@ public:
     src = inBuf.samps(0, mAlgorithm.mlp.dims(), 0);
     mAlgorithm.mlp.processFrame(src, dest, 0, layer);
     auto label = mAlgorithm.encoder.decodeOneHot(dest);
-    return label;
+    return std::make_tuple(label, *std::max_element(dest.begin(), dest.end()));
   }
 
   static auto getMessageDescriptors()
