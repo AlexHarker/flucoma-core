@@ -28,6 +28,8 @@ struct MLPClassifierData
   algorithm::LabelSetEncoder encoder;
   index                      size() { return mlp.size(); }
   index                      dims() { return mlp.dims(); }
+  index                      layerSize(index idx) { return mlp.outputSize(idx); }
+  index                      activation() { return mlp.mLayers[0].getActType(); }
   void                       clear()
   {
     mlp.clear();
@@ -253,6 +255,31 @@ public:
         makeMessage("read", &MLPClassifierClient::read));
   }
 
+  MessageResult<void> read(string fileName)
+  {
+    auto readResult = DataClient::read(fileName);
+    
+    if (readResult.ok())
+    {
+      const index nLayers = mAlgorithm.size();
+      FluidTensor<index, 1> layersParam(nLayers - 1);
+      
+      if (nLayers > 1)
+      {
+        for(index i = 0;  i < nLayers - 1; ++i)
+          layersParam[i] = mAlgorithm.layerSize(i + 1);
+      }
+      
+      index act = mAlgorithm.activation();
+
+      auto& params = mParams.get();
+      params.template set<kHidden>(std::move(layersParam),nullptr);
+      params.template set<kActivation>(std::move(act),nullptr);
+    }
+    
+    return readResult;
+  }
+    
 private:
   FluidInputTrigger                         mTrigger;
   ParameterTrackChanges<IndexVector, index> mTracker;
