@@ -10,10 +10,10 @@ under the European Union’s Horizon 2020 research and innovation programme
 
 #pragma once
 
-#include "ConvolutionTools.hpp"
 #include "Toeplitz.hpp"
 #include "../public/WindowFuncs.hpp"
 #include "../../data/FluidIndex.hpp"
+#include <SpectralProcessor.hpp>
 #include <Eigen/Eigen>
 #include <algorithm>
 #include <cmath>
@@ -107,6 +107,8 @@ private:
 
   void directEstimate(const double* input, index size, bool updateVariance)
   {
+    using SpecProcess = spectral_processor<double>;
+      
     // copy input to a 32 byte aligned block (otherwise risk segfaults on Linux)
     VectorXd frame = Eigen::Map<const VectorXd>(input, size);
 
@@ -121,10 +123,11 @@ private:
       frame.array() *= mWindow;
     }
 
-
     VectorXd autocorrelation(size);
-    algorithm::autocorrelateReal(autocorrelation.data(), frame.data(),
-                                 asUnsigned(size));
+    // This is very inefficient as it assigns an FFTSetup and temporary memory on the fly, but it replaces directly the previous code. There is another approach possible using SpectralFunctions.hpp where the temp assignments are dealt with ahead of time that would be better...
+    SpecProcess processor(asUnsigned(size + size - 1));
+    SpecProcess::EdgeMode mode = SpecProcess::kEdgeLinear;
+    processor.correlate(autocorrelation.data(), {frame.data(), asUnsigned(size)},{frame.data(), asUnsigned(size)}, mode);
 
     // Resize to the desired order (only keep coefficients for up to the order
     // we need)
