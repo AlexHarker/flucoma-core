@@ -1,13 +1,101 @@
+# 1.0.0-TB2.beta4: Change Log
+Date: November 5th, 2021
+
+## Objects
+- fluid.waveform~ is a new JSUI abstraction that allows you to draw and overlay the contents of audio, feature curves and segmentation from buffers in a visual display.
+- FluidWaveform is the SuperCollider class that mirrors the Max JSUI abstraction.
+- SuperCollider has a a new class, FluidPlotter, that allows you to plot points in a two-dimensional canvas.
+- Pure Data now has an abstraction that mirrors the functionality `fluid.plotter`.
+
+## Interfaces and Behaviours
+- `fluid.plotter` has a modified interface compared to its original release in beta3. It is worth checking the help file for these changes if you use the object as they are subtle but breaking. Namely, there are new ways for managing the properties of individual points such as their colour and size. (https://github.com/flucoma/flucoma-max/pull/69)
+- `fluid.plotter` will deterministically colour points when the number of clusters exceeds the number of possible colours in a palette. (https://github.com/flucoma/flucoma-max/pull/72)
+
+## Fixes
+- Calling `load` on a dataset with no arguments no longer crashes Max. (https://github.com/flucoma/flucoma-max/pull/61)
+- Unnamed objects that rely on `libmanipulation` will now generate unique names so that all unnamed objects no longer talk to each other across a patch. This means that unnamed objects will behave the same as they did prior to the addition of named objects. (https://github.com/flucoma/flucoma-max/pull/57)
+- Stricter ordering for access to `mDone` in the NRT Wrapper. https://github.com/flucoma/flucoma-sc/pull/30
+
+## Tooling
+- Copy the `jsui` and `js` folder when building the Max package.
+
+---
+
+# 1.0.0-TB2.beta3:
+Date: Oct 25th, 2021
+
+## CCE
+- PureData has parity with other CCE's except for:
+	- `load` and `dump` methods for DataSet and LabelSet (workaround in place)
+	- Limited help-files. These will be updated A.S.A.P and posted as they are updated.
+	- Limited testing of the new objects, accordingly.
+
+## Objects
+- New Objects
+	- FluidGrid: coerce data in a FluidDataSet into a two-dimensional grid
+	- FluidStats: compute real-time statistics (mean and stddev) on data streams		
+	- MAX: FluidPlotter: Rapidly plot two-dimensional datasets
+	- MAX+PD `fluid.buf2list` and `fluid.list2buf` are now compiled objects. Be aware of their new attributes in Max
+	- SC: FluidBufToKr and FluidKrToBuf pseudo-Ugens help with the dataset to descriptor to dataset workflow
+- New Sounds
+	- trombone long tones, and oboe multiphonics, now included.
+
+## Interfaces and Behaviours
+- FluidMFCC has a new attribute: "startCoef" which modifies which coefficients are returned by the algorithm. A common use case is to discard the first coefficient.
+- MAX+PD: All data objects can be named to share persistent state. For example, `fluid.kdtree~ my-tree` in Max can be used everywhere throughout a patch to reference the same k-d tree named `my-tree`.
+
+## Fixes
+- Improved performance with FluidAmpGate
+- Crashes caused by (tapin - tapout == 0) on FluidMLP
+- Crashes caused by when loading MLP models from JSON
+- FluidLoudness no longer spikes to the maximum on digital silence
+- Many other fixes, see the `git` log for details.
+- BREAKING: BufSelectEvery's method `channelhop`is now `chanhop`to be consistent
+
+## Tooling
+- Compilation on Arch Linux is now made possible again by fixing linking against the cutting edge of Boost.
+- Building no longer uses AVX instructions by default to allow for an easier experience compiling for M1 Mac and ARM processors.
+- Max compilation can now also uses the 8.2 SDK
+
+===
+# Beta-02:
+date: June 2nd, 2021
+
+- New object: (buf)chroma for pitch class histograms
+- New overview of all objects
+- Log frequency and power magnitude options in SpectralShape
+
+- Log output option to melbands
+- Change of MFCC outs
+- change of unit of rolloff and new parameter to set the value (instead of fixed to 95%)
+
+- Some protection against thread conflicts in the dataset objects
+- Pitch new default when no pitch detected (0 Hz or -999midi)
+- Fixed Cosine distances in Onset and MDS
+- Fix in PCA for size=dimcount
+- Max: basic hints for inlets and outlets
+
+#### Known bugs:
+Windows (Max + SC): Pitch's Yin algo yields a few error frames at its start, but not every time. This also affects Novelty by Pitch. We're chasing.
+
+Linux (SC): SpectralShape has infrequent random outputs. We're chasing that one too.
+
+Windows (Max): bufthreaddemo is not working well. The real threading is working but the explanation object is not.
+
+Linux (SC): example 13 (massive parallelisation) is not working.
+
+
+===
 # TB2 Beta 01
 April 2021
 
 ## All Hosts
 
 ### New Objects
-* BufSTFT: Run a STFT or ISTFT on a buffer 
+* BufSTFT: Run a STFT or ISTFT on a buffer
 * BufSelect and BufSelectEvery: cherry picking from Buffers
 
-### Enhancements 
+### Enhancements
 * Descriptors objects: Now have adjustable padding (none, window / 2, window - hop)
 * DataSet: one step conversion to / from Buffer + access to IDs as LabelSet
 * KMeans: Easy access to means and distances; incremental fitting
@@ -15,50 +103,50 @@ April 2021
 * DataSet: new setPoint message for updating extant points, or creating new point if needed
 * Slicers: Improved latency calculations and accuracy of Buffer versions
 * BufFlatten: Now handles Buffer sub-ranges
-* BufScale: Add clipping option 
+* BufScale: Add clipping option
 * BufNMFCross: Improve sound, add progress update and continuity control
 
 ### Fixes   
 * MLP: handle inconsistent dimensions when incremental fitting
-* LabelSet: Fix JSON 
+* LabelSet: Fix JSON
 * MLP: Fix early stopping
 * Standardization + Normalization: Fix divide by zero
-* MLP: Fix concurrency issue when fitting and transforming on different threads 
-* Pitch: Avoid negative confidence values 
+* MLP: Fix concurrency issue when fitting and transforming on different threads
+* Pitch: Avoid negative confidence values
 
-## Supercollider 
+## Supercollider
 
-### Enhancements 
+### Enhancements
 * FluidDataSetWr: New interface to use DataSet::setPoint (breaking change)
-* KMeans: documentation 
-* BufStats: documentation 
+* KMeans: documentation
+* BufStats: documentation
 
-### Fixes 
+### Fixes
 * Argument passing in .kr for some objects
 * Build settings on Catalina
-* Parameter passing on initialisation for some objects 
-* Some problems when using internal server 
-* Some inefficiencies with UGens 
+* Parameter passing on initialisation for some objects
+* Some problems when using internal server
+* Some inefficiencies with UGens
 
 ## Known issues
 * FluidBufThreadDemo can be very slow on Windows (Max and SC)
 * SC: Behaviour of FreeSelfWhenDone with FluidBuf* *kr objects is unpredictable on Linux
 
-## Max 
+## Max
 
-### Enhancements 
+### Enhancements
 * KMeans help: new examples
 * Improved indexing of reference documentation, especially on Max 7
 * Explanation of FFT settings' impact in fluid.audiotransport~ help
 
-### Fixes 
+### Fixes
 * UMAP helpfile error
 * RobustScale helpfile error
 * Build settings on Catalina
 * Cross-referencing between dimension reduction documentation
 
-=== 
-# TB2 Alpha 08 
+===
+# TB2 Alpha 08
 January 20 2021
 
 ## Bugs fixed:
@@ -67,9 +155,9 @@ January 20 2021
 * Use of SC .kr classes in SynthDefs
 * NMFMorph window-related modulation artifacts
 
-=== 
+===
 
-# TB2 Alpha 07 
+# TB2 Alpha 07
 December 22 2020
 
 ## Improvements:
@@ -89,7 +177,7 @@ December 22 2020
 # Non-breaking changes:
 * SC: no more name to DataSet and LabelSet
 
-=== 
+===
 
 # TB2 Alpha 06
 September 24 2020
@@ -112,9 +200,9 @@ September 24 2020
 * large dictionary dumps are still problematic in Max
 * negative confidence in pitch is still there (will be noticed more with the new examples)
 
-=== 
+===
 
-# TB2 Alpha 05 
+# TB2 Alpha 05
 August 6 2020
 
 ## New examples:
@@ -158,11 +246,11 @@ Should mostly be edge cases. Feel free to test against your reports and update t
 
 ===
 
-# TB2 Alpha 04 
+# TB2 Alpha 04
 July 17 2020
 
 ===
-# TB2 Alpha 03 
+# TB2 Alpha 03
 June 20 2020
 
 ## Major changes in the SC interface.
@@ -225,7 +313,7 @@ May 21 2020
 
     Max: we have not got autocompletion working for the new objects yet, nor documentation. (You will get some JS errors with the help files because of that, no worries)
 
-=== 
+===
 # TB2 Alpha-01:
 
 date: December 5th, 2019

@@ -56,6 +56,8 @@ class ParamAliasAdaptor<NRTClient, std::tuple<Ts...>>
       typename WrappedClient::ParamDescType::template ParamType<N>;
 
 public:
+  using ValueTuple = typename ParamSetType::ValueTuple;
+
   ParamAliasAdaptor(typename NRTClient::ParamDescType&)
       : mParams{std::make_shared<ListeningParams>()}
   {}
@@ -140,7 +142,9 @@ public:
     }
 
     if (!mParamsTable.count(name)) // key not already in table
-    { mParamsTable.emplace(name, mParams); }
+    {
+      mParamsTable.emplace(name, mParams);
+    }
 
     refer(name);
 
@@ -193,6 +197,20 @@ public:
     return mParams->params.template subset<offset>();
   }
 
+  template <typename Tuple>
+  void fromTuple(Tuple vals)
+  {
+    mParams->params.fromTuple(vals);
+
+    for (auto&& listeners : mParams->listeners)
+      for (auto&& l : listeners) l.first();
+  }
+
+  typename ParamSetType::ValueTuple toTuple()
+  {
+    return {mParams->params.toTuple()};
+  }
+
   template <size_t N, typename F>
   void addListener(F&& f, void* key)
   {
@@ -203,8 +221,10 @@ public:
   void removeListener(void* key)
   {
     auto& listeners = mParams->listeners[N];
-    std::remove_if(listeners.begin(), listeners.end(),
-                   [&key](ListenerEntry& e) { return e.second == key; });
+    listeners.erase(
+        std::remove_if(listeners.begin(), listeners.end(),
+                       [&key](ListenerEntry& e) { return e.second == key; }),
+        listeners.end());
   }
 
 private:
@@ -264,11 +284,11 @@ public:
     return WrappedClient::getMessageDescriptors();
   }
 
-  index audioChannelsIn() const noexcept { return 0; }
-  index audioChannelsOut() const noexcept { return 0; }
-  index controlChannelsIn() const noexcept { return 0; }
-  index controlChannelsOut() const noexcept { return 0; }
-  index audioBuffersIn() const noexcept
+  index          audioChannelsIn() const noexcept { return 0; }
+  index          audioChannelsOut() const noexcept { return 0; }
+  index          controlChannelsIn() const noexcept { return 0; }
+  ControlChannel controlChannelsOut() const noexcept { return {0, 0}; }
+  index          audioBuffersIn() const noexcept
   {
     return ParamDescType::template NumOf<InputBufferT>();
   }

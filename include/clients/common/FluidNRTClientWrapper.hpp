@@ -43,14 +43,14 @@ template <typename B>
 auto constexpr makeWrapperInputs(B b1, B b2)
 {
   return defineParameters(
-      std::forward<B>(b1), LongParam("startFrame", "Source Offset", 0, Min(0)),
-      LongParam("numFrames", "Number of Frames", -1),
-      LongParam("startChan", "Start Channel", 0, Min(0)),
-      LongParam("numChans", "Number of Channels", -1), std::forward<B>(b2),
-      LongParam("startFrameB", "Source Offset B", 0, Min(0)),
-      LongParam("numFramesB", "Number of Frames B", -1),
-      LongParam("startChanB", "Start Channel B", 0, Min(0)),
-      LongParam("numChansB", "Number of Channels B", -1));
+      std::forward<B>(b1), LongParam("startFrameA", "Source A Offset", 0, Min(0)),
+      LongParam("numFramesA", "Source A Number of Frames", -1),
+      LongParam("startChanA", "Source A Start Channel", 0, Min(0)),
+      LongParam("numChansA", "Source A Number of Channels", -1), std::forward<B>(b2),
+      LongParam("startFrameB", "Source B Offset", 0, Min(0)),
+      LongParam("numFramesB", "Source B Number of Frames", -1),
+      LongParam("startChanB", "Source B Start Channel", 0, Min(0)),
+      LongParam("numChansB", "Source B Number of Channels", -1));
 }
 
 template <typename... B>
@@ -259,7 +259,7 @@ public:
   index audioChannelsIn() const noexcept { return 0; }
   index audioChannelsOut() const noexcept { return 0; }
   index controlChannelsIn() const noexcept { return 0; }
-  index controlChannelsOut() const noexcept { return 0; }
+  ControlChannel controlChannelsOut() const noexcept { return {0,0}; }
   /// Map delegate audio / control channels to audio buffers
   index audioBuffersIn() const noexcept { return mClient.audioChannelsIn(); }
   index audioBuffersOut() const noexcept
@@ -531,7 +531,7 @@ struct StreamingControl
   {
     // To account for process latency we need to copy the buffers with padding
     std::vector<HostMatrix> inputData;
-    index                   nFeatures = client.controlChannelsOut();
+    index                   nFeatures = client.controlChannelsOut().size;
     //      outputData.reserve(nFeatures);
     inputData.reserve(inputBuffers.size());
 
@@ -588,13 +588,14 @@ struct StreamingControl
         inputs.reserve(inputBuffers.size());
         std::vector<HostVectorView> outputs;
         outputs.reserve(outputBuffers.size());
+        
         for (index k = 0; k < asSigned(inputBuffers.size()); ++k)
           inputs.emplace_back(
               inputData[asUnsigned(k)].row(i)(Slice(t, controlRate)));
 
-        for (index k = 0; k < nFeatures; ++k)
-          outputs.emplace_back(outputData.row(k + i * nFeatures)(Slice(j, 1)));
-
+        // for (index k = 0; k < nFeatures; ++k)
+        //   outputs.emplace_back(outputData.row(k + i * nFeatures)(Slice(j, 1)));
+        outputs.push_back(outputData.col(j)(Slice(i * nFeatures, nFeatures)));
 
         client.process(inputs, outputs, dummyContext);
 
@@ -765,7 +766,7 @@ public:
   index audioChannelsIn() const noexcept { return 0; }
   index audioChannelsOut() const noexcept { return 0; }
   index controlChannelsIn() const noexcept { return 0; }
-  index controlChannelsOut() const noexcept { return 0; }
+  ControlChannel controlChannelsOut() const noexcept { return {0,0}; }
   index audioBuffersIn() const noexcept
   {
     return ParamDescType::template NumOf<InputBufferT>();
