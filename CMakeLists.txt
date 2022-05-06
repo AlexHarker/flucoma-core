@@ -171,6 +171,25 @@ add_library(
   "${hisstools_SOURCE_DIR}/AudioFile/OAudioFile.cpp"
 )
 
+target_include_directories(HDBSCAN_CPP PUBLIC "${hdbscan_SOURCE_DIR}/Hdbscan/")
+
+# hdbscan CPP Target
+add_library(
+  HDBSCAN_CPP STATIC 
+  "${hdbscan_SOURCE_DIR}/Distance/EuclideanDistance.cpp"
+  "${hdbscan_SOURCE_DIR}/Distance/IDistanceCalculator.cpp"
+  "${hdbscan_SOURCE_DIR}/Distance/ManhattanDistance.cpp"
+  "${hdbscan_SOURCE_DIR}/Hdbscan/hdbscan.cpp"
+  "${hdbscan_SOURCE_DIR}/HdbscanStar/cluster.cpp"
+  "${hdbscan_SOURCE_DIR}/HdbscanStar/hdbscanAlgorithm.cpp"
+  "${hdbscan_SOURCE_DIR}/HdbscanStar/hdbscanConstraint.cpp"
+  "${hdbscan_SOURCE_DIR}/HdbscanStar/outlierScore.cpp"
+  "${hdbscan_SOURCE_DIR}/HdbscanStar/undirectedGraph.cpp"
+  "${hdbscan_SOURCE_DIR}/Runner/hdbscanParameters.cpp"
+  "${hdbscan_SOURCE_DIR}/Runner/hdbscanResult.cpp"
+  "${hdbscan_SOURCE_DIR}/Runner/hdbscanRunner.cpp"
+  "${hdbscan_SOURCE_DIR}/Utils/bitSet.cpp"
+)
 
 #Fluid Decomposition header-only target
 add_library(FLUID_DECOMPOSITION INTERFACE)
@@ -187,6 +206,7 @@ target_include_directories(
 target_link_libraries(
   FLUID_DECOMPOSITION INTERFACE 
   HISSTools_FFT 
+  HDBSCAN_CPP
   flucoma_VERSION_LIB 
   tl::optional
   nlohmann_json::nlohmann_json
@@ -212,6 +232,7 @@ if(APPLE)
   #targeting <= 10.9, need to really emphasise that we want libc++ both to compiler and linker
   target_compile_options(HISSTools_FFT PUBLIC -stdlib=libc++)
   target_compile_options(HISSTools_AudioFile PUBLIC -stdlib=libc++)
+  target_compile_options(HDBSCAN_CPP PUBLIC -stdlib=libc++)
   target_compile_options(FLUID_DECOMPOSITION INTERFACE -stdlib=libc++)
   target_link_libraries(FLUID_DECOMPOSITION INTERFACE -stdlib=libc++)
 endif()
@@ -220,6 +241,7 @@ endif()
 if(DEFINED FLUID_ARCH)
   target_compile_options(HISSTools_FFT PUBLIC ${FLUID_ARCH})
   target_compile_options(HISSTools_AudioFile PUBLIC ${FLUID_ARCH})
+  target_compile_options(HDBSCAN_CPP PUBLIC ${FLUID_ARCH})
   target_compile_options(FLUID_DECOMPOSITION INTERFACE ${FLUID_ARCH})
 endif()
 

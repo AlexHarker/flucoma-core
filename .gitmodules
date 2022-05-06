@@ -1,0 +1,3 @@
+[submodule "thirdparty/hdbscan-cpp"]
+	path = thirdparty/hdbscan-cpp
+	url = https://github.com/rohanmohapatra/hdbscan-cpp
