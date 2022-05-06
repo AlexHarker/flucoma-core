@@ -23,7 +23,7 @@ under the European Union’s Horizon 2020 research and innovation programme
 namespace fluid {
 namespace algorithm {
 
-class KMeans
+class HDBScan
 {
 
 public:

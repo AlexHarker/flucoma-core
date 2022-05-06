@@ -13,7 +13,7 @@ under the European Union’s Horizon 2020 research and innovation programme
 #include "DataSetClient.hpp"
 #include "LabelSetClient.hpp"
 #include "NRTClient.hpp"
-#include "../../algorithms/public/KMeans.hpp"
+#include "../../algorithms/public/HDBScan.hpp"
 #include <string>
 
 namespace fluid {
