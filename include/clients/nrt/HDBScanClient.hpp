@@ -29,7 +29,7 @@ class KMeansClient : public FluidBaseClient,
                      OfflineIn,
                      OfflineOut,
                      ModelObject,
-                     public DataClient<algorithm::KMeans>
+                     public DataClient<algorithm::HDBScan>
 {
   enum { kName, kNumClusters, kMaxIter };
 
