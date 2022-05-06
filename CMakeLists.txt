@@ -79,6 +79,13 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
+  hdbscan 
+  GIT_SHALLOW TRUE
+  GIT_REPOSITORY https://github.com/rohanmohapatra/hdbscan-cpp
+  GIT_PROGRESS TRUE
+)
+
+FetchContent_Declare(
   json 
   GIT_SHALLOW TRUE
   # GIT_REPOSITORY https://github.com/nlohmann/json.git
