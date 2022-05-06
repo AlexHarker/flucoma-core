@@ -206,7 +206,7 @@ add_library(
   "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Utils/bitSet.cpp"
 )
 
-target_include_directories(hdbscan_cpp PUBLIC "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Hdbscan/")
+target_include_directories(hdbscan_cpp PUBLIC "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/")
 
 #Fluid Decomposition header-only target
 add_library(FLUID_DECOMPOSITION INTERFACE)
@@ -223,7 +223,7 @@ target_include_directories(
 target_link_libraries(
   FLUID_DECOMPOSITION INTERFACE 
   HISSTools_FFT 
-  HDBSCAN_CPP
+  hdbscan_cpp
   flucoma_VERSION_LIB 
   tl::optional
   nlohmann_json::nlohmann_json

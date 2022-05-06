@@ -18,20 +18,20 @@ under the European Union’s Horizon 2020 research and innovation programme
 
 namespace fluid {
 namespace client {
-namespace kmeans {
+namespace hdbscan {
 
-constexpr auto KMeansParams = defineParameters(
+constexpr auto HDBScanParams = defineParameters(
     StringParam<Fixed<true>>("name", "Name"),
-    LongParam("numClusters", "Number of Clusters", 4, Min(1)),
-    LongParam("maxIter", "Max number of Iterations", 100, Min(1)));
+    LongParam("minPoints", "Min number of points in a cluster", 10, Min(1)),
+    LongParam("minClusterSize", "Min cluster size", 0, Min(0)));
 
-class KMeansClient : public FluidBaseClient,
+class HDBScanClient : public FluidBaseClient,
                      OfflineIn,
                      OfflineOut,
                      ModelObject,
                      public DataClient<algorithm::HDBScan>
 {
-  enum { kName, kNumClusters, kMaxIter };
+  enum { kName, kMinPoints, kMinClusterSize };
 
 public:
   using string = std::string;
@@ -42,7 +42,7 @@ public:
   using StringVectorView = FluidTensorView<string, 1>;
   using LabelSet = FluidDataSet<string, string, 1>;
 
-  using ParamDescType = decltype(KMeansParams);
+  using ParamDescType = decltype(HDBScanParams);
 
   using ParamSetViewType = ParameterSetView<ParamDescType>;
   std::reference_wrapper<ParamSetViewType> mParams;
@@ -55,9 +55,9 @@ public:
     return mParams.get().template get<N>();
   }
 
-  static constexpr auto& getParameterDescriptors() { return KMeansParams; }
+  static constexpr auto& getParameterDescriptors() { return HDBScanParams; }
 
-  KMeansClient(ParamSetViewType& p) : mParams(p)
+  HDBScanClient(ParamSetViewType& p) : mParams(p)
   {
     audioChannelsIn(1);
     controlChannelsOut({1, 1});
@@ -71,38 +71,35 @@ public:
 
   MessageResult<IndexVector> fit(InputDataSetClientRef datasetClient)
   {
-    index k = get<kNumClusters>();
-    index maxIter = get<kMaxIter>();
+    index minPoints = get<kMinPoints>();
+    index minClusterSize = get<kMinClusterSize>();
     auto  datasetClientPtr = datasetClient.get().lock();
     if (!datasetClientPtr) return Error<IndexVector>(NoDataSet);
     auto dataSet = datasetClientPtr->getDataSet();
     if (dataSet.size() == 0) return Error<IndexVector>(EmptyDataSet);
-    if (k <= 1) return Error<IndexVector>(SmallK);
-    mAlgorithm.train(dataSet, k, maxIter);
+    mAlgorithm.train(dataSet, minPoints, minClusterSize);
     IndexVector assignments(dataSet.size());
     mAlgorithm.getAssignments(assignments);
-    return getCounts(assignments, k);
+    return getCounts(assignments);
   }
 
   MessageResult<IndexVector> fitPredict(InputDataSetClientRef  datasetClient,
                                         LabelSetClientRef labelsetClient)
   {
-    index k = get<kNumClusters>();
-    index maxIter = get<kMaxIter>();
+    index minPoints = get<kMinPoints>();
+    index minClusterSize = get<kMinClusterSize>();
     auto  datasetClientPtr = datasetClient.get().lock();
     if (!datasetClientPtr) return Error<IndexVector>(NoDataSet);
     auto dataSet = datasetClientPtr->getDataSet();
     if (dataSet.size() == 0) return Error<IndexVector>(EmptyDataSet);
     auto labelsetClientPtr = labelsetClient.get().lock();
     if (!labelsetClientPtr) return Error<IndexVector>(NoLabelSet);
-    if (k <= 1) return Error<IndexVector>(SmallK);
-    if (maxIter <= 0) maxIter = 100;
-    mAlgorithm.train(dataSet, k, maxIter);
+    mAlgorithm.train(dataSet, minPoints, minClusterSize);
     IndexVector assignments(dataSet.size());
     mAlgorithm.getAssignments(assignments);
     StringVectorView ids = dataSet.getIds();
     labelsetClientPtr->setLabelSet(getLabels(ids, assignments));
-    return getCounts(assignments, k);
+    return getCounts(assignments);
   }
 
   MessageResult<IndexVector> predict(InputDataSetClientRef  datasetClient,
@@ -126,7 +123,7 @@ public:
       assignments(i) = mAlgorithm.vq(query);
     }
     labelsetClientPtr->setLabelSet(getLabels(ids, assignments));
-    return getCounts(assignments, mAlgorithm.getK());
+    return getCounts(assignments);
   }
 
 
@@ -155,21 +152,19 @@ public:
   MessageResult<IndexVector> fitTransform(InputDataSetClientRef srcClient,
                                           DataSetClientRef dstClient)
   {
-    index k = get<kNumClusters>();
-    index maxIter = get<kMaxIter>();
+    index minPoints = get<kMinPoints>();
+    index minClusterSize = get<kMinClusterSize>();
     auto  srcPtr = srcClient.get().lock();
     if (!srcPtr) return Error<IndexVector>(NoDataSet);
     auto destPtr = dstClient.get().lock();
     if (!destPtr) return Error<IndexVector>(NoDataSet);
     auto dataSet = srcPtr->getDataSet();
     if (dataSet.size() == 0) return Error<IndexVector>(EmptyDataSet);
-    if (k <= 1) return Error<IndexVector>(SmallK);
-    if (maxIter <= 0) maxIter = 100;
-    mAlgorithm.train(dataSet, k, maxIter);
+    mAlgorithm.train(dataSet, minPoints, minClusterSize);
     IndexVector assignments(dataSet.size());
     mAlgorithm.getAssignments(assignments);
     transform(srcClient, dstClient);
-    return getCounts(assignments, k);
+    return getCounts(assignments);
   }
 
   MessageResult<index> predictPoint(InputBufferPtr data) const
@@ -205,7 +200,7 @@ public:
     if (!srcPtr) return Error(NoDataSet);
     auto dataSet = srcPtr->getDataSet();
     if (dataSet.size() == 0) return Error(EmptyDataSet);
-    if (dataSet.size() != get<kNumClusters>()) return Error(WrongNumInitial);
+    if (dataSet.size() != mAlgorithm.numClusters()) return Error(WrongNumInitial);
     mAlgorithm.setMeans(dataSet.getData());
     return OK();
   }
@@ -232,31 +227,37 @@ public:
   static auto getMessageDescriptors()
   {
     return defineMessages(
-        makeMessage("fit", &KMeansClient::fit),
-        makeMessage("predict", &KMeansClient::predict),
-        makeMessage("transform", &KMeansClient::transform),
-        makeMessage("predictPoint", &KMeansClient::predictPoint),
-        makeMessage("transformPoint", &KMeansClient::transformPoint),
-        makeMessage("fitTransform", &KMeansClient::fitTransform),
-        makeMessage("getMeans", &KMeansClient::getMeans),
-        makeMessage("setMeans", &KMeansClient::setMeans),
-        makeMessage("fitPredict", &KMeansClient::fitPredict),
-        makeMessage("cols", &KMeansClient::dims),
-        makeMessage("clear", &KMeansClient::clear),
-        makeMessage("size", &KMeansClient::size),
-        makeMessage("load", &KMeansClient::load),
-        makeMessage("dump", &KMeansClient::dump),
-        makeMessage("write", &KMeansClient::write),
-        makeMessage("read", &KMeansClient::read));
+        makeMessage("fit", &HDBScanClient::fit),
+        makeMessage("predict", &HDBScanClient::predict),
+        makeMessage("transform", &HDBScanClient::transform),
+        makeMessage("predictPoint", &HDBScanClient::predictPoint),
+        makeMessage("transformPoint", &HDBScanClient::transformPoint),
+        makeMessage("fitTransform", &HDBScanClient::fitTransform),
+        makeMessage("getMeans", &HDBScanClient::getMeans),
+        makeMessage("setMeans", &HDBScanClient::setMeans),
+        makeMessage("fitPredict", &HDBScanClient::fitPredict),
+        makeMessage("cols", &HDBScanClient::dims),
+        makeMessage("clear", &HDBScanClient::clear),
+        makeMessage("size", &HDBScanClient::size),
+        makeMessage("load", &HDBScanClient::load),
+        makeMessage("dump", &HDBScanClient::dump),
+        makeMessage("write", &HDBScanClient::write),
+        makeMessage("read", &HDBScanClient::read));
   }
 
 
 private:
-  IndexVector getCounts(IndexVector assignments, index k) const
+  IndexVector getCounts(IndexVector assignments) const
   {
-    IndexVector counts(k);
+    IndexVector counts(mAlgorithm.numClusters() + 1);
     counts.fill(0);
-    for (auto a : assignments) counts[a]++;
+    for (auto a : assignments)
+        if (a < 0)
+            counts[0]++;
+        else if (a == 0)
+            assert(false);
+        else
+            counts[a]++;
     return counts;
   }
 
@@ -272,19 +273,19 @@ private:
   }
 };
 
-using KMeansRef = SharedClientRef<const KMeansClient>;
+using HDBScanRef = SharedClientRef<const HDBScanClient>;
 
-constexpr auto KMeansQueryParams =
-    defineParameters(KMeansRef::makeParam("kmeans", "Source KMeans model"),
+constexpr auto HDBScanQueryParams =
+    defineParameters(HDBScanRef::makeParam("kmeans", "Source KMeans model"),
                      InputBufferParam("inputPointBuffer", "Input Point Buffer"),
                      BufferParam("predictionBuffer", "Prediction Buffer"));
 
-class KMeansQuery : public FluidBaseClient, ControlIn, ControlOut
+class HDBScanQuery : public FluidBaseClient, ControlIn, ControlOut
 {
   enum { kModel, kInputBuffer, kOutputBuffer };
 
 public:
-  using ParamDescType = decltype(KMeansQueryParams);
+  using ParamDescType = decltype(HDBScanQueryParams);
 
   using ParamSetViewType = ParameterSetView<ParamDescType>;
   std::reference_wrapper<ParamSetViewType> mParams;
@@ -297,9 +298,9 @@ public:
     return mParams.get().template get<N>();
   }
 
-  static constexpr auto& getParameterDescriptors() { return KMeansQueryParams; }
+  static constexpr auto& getParameterDescriptors() { return HDBScanQueryParams; }
 
-  KMeansQuery(ParamSetViewType& p) : mParams(p)
+  HDBScanQuery(ParamSetViewType& p) : mParams(p)
   {
     controlChannelsIn(1);
     controlChannelsOut({1, 1});
@@ -312,14 +313,14 @@ public:
     output[0] <<= input[0];
     if (input[0](0) > 0)
     {
-      auto kmeansPtr = get<kModel>().get().lock();
-      if (!kmeansPtr)
+      auto hdbscanPtr = get<kModel>().get().lock();
+      if (!hdbscanPtr)
       {
         // report error?
         return;
       }
-      if (!kmeansPtr->initialized()) return;
-      index             dims = kmeansPtr->dims();
+      if (!hdbscanPtr->initialized()) return;
+      index             dims = hdbscanPtr->dims();
       InOutBuffersCheck bufCheck(dims);
       if (!bufCheck.checkInputs(get<kInputBuffer>().get(),
                                 get<kOutputBuffer>().get()))
@@ -329,7 +330,7 @@ public:
       RealVector point(dims);
       point <<= BufferAdaptor::ReadAccess(get<kInputBuffer>().get())
                   .samps(0, dims, 0);
-      outBuf.samps(0)[0] = kmeansPtr->algorithm().vq(point);
+      outBuf.samps(0)[0] = hdbscanPtr->algorithm().vq(point);
     }
   }
 
@@ -339,10 +340,10 @@ public:
 
 } // namespace kmeans
 
-using NRTThreadedKMeansClient =
-    NRTThreadingAdaptor<typename kmeans::KMeansRef::SharedType>;
+using NRTThreadedHDBScanClient =
+    NRTThreadingAdaptor<typename hdbscan::HDBScanRef::SharedType>;
 
-using RTKMeansQueryClient = ClientWrapper<kmeans::KMeansQuery>;
+using RTHDBScanQueryClient = ClientWrapper<hdbscan::HDBScanQuery>;
 
 } // namespace client
 } // namespace fluid

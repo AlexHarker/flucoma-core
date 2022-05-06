@@ -16,9 +16,17 @@ under the European Union’s Horizon 2020 research and innovation programme
 #include "../../data/FluidIndex.hpp"
 #include "../../data/FluidTensor.hpp"
 #include "../../data/TensorTypes.hpp"
+#include <Hdbscan/hdbscan.hpp>
 #include <Eigen/Core>
 #include <queue>
 #include <string>
+#include <vector>
+
+#include <Runner/hdbscanRunner.hpp>
+#include <Runner/hdbscanParameters.hpp>
+#include <Runner/hdbscanResult.hpp>
+#include <HdbscanStar/outlierScore.hpp>
+
 
 namespace fluid {
 namespace algorithm {
@@ -30,51 +38,77 @@ public:
   void clear()
   {
     mMeans.setZero();
-    mAssignments.setZero();
+    mNormalizedLabels.clear();
+    mNoisyPoints = 0;
+    mNumClusters = 0;
     mTrained = false;
   }
 
   bool initialized() const { return mTrained; }
 
-  void train(const FluidDataSet<std::string, double, 1>& dataset, index k,
-             index maxIter)
+  void train(const FluidDataSet<std::string, double, 1>& dataset, index minPoints,
+             index minClusterSize)
   {
-    using namespace Eigen;
-    using namespace _impl;
-    assert(!mTrained || (dataset.pointSize() == mDims && mK == k));
-    auto dataPoints = asEigen<Array>(dataset.getData());
-    if (mTrained) { mAssignments = assignClusters(dataPoints); }
-    else
+    assert(!mTrained);
+    auto data = dataset.getData();
+    
+    std::vector<vector<double>> dataCopy;
+      
+    for (index i = 0; i < data.extent(0); i++)
     {
-      mK = k;
-      mDims = dataset.pointSize();
-      mMeans = ArrayXXd::Zero(mK, mDims);
-      mEmpty = std::vector<bool>(asUnsigned(mK), false);
-      mAssignments =
-          ((0.5 + (0.5 * ArrayXf::Random(dataPoints.rows()))) * (mK - 1))
-              .round()
-              .cast<int>();
+      auto row = data.row(i);
+        dataCopy.push_back(std::vector<double>());
+        dataCopy.back().reserve(row.size());
+      for (index j = 0; j < row.size(); j++)
+          dataCopy.back().push_back(row[j]);
     }
-
-    while (maxIter-- > 0)
+      
+    hdbscanRunner runner;
+    hdbscanParameters parameters;
+    uint32_t noisyPoints = 0;
+    set<int> numClustersSet;
+    map<int, int> clustersMap;
+      
+    parameters.dataset = dataCopy;
+    parameters.minPoints = minPoints;
+    parameters.minClusterSize = minClusterSize;
+    parameters.distanceFunction = "";
+      
+    auto result = runner.run(parameters);
+      
+    for (uint32_t i = 0; i < result.labels.size(); i++)
     {
-      computeMeans(dataPoints);
-      auto assignments = assignClusters(dataPoints);
-      if (!changed(assignments)) { break; }
+      if (result.labels[i] == 0)
+        noisyPoints++;
       else
-      {
-        mAssignments = assignments;
-      }
+        numClustersSet.insert(result.labels[i]);
     }
+    
+    mNumClusters = numClustersSet.size();
+    mNoisyPoints = noisyPoints;
+     
+    int idx = 1;
+    for (auto it = numClustersSet.begin(); it != numClustersSet.end(); it++)
+        clustersMap[*it] = idx++;
+    
+    for (int i = 0; i < result.labels.size(); i++)
+    {
+      if (result.labels[i] != 0)
+        mNormalizedLabels.push_back(clustersMap[result.labels[i]]);
+      else if (result.labels[i] == 0)
+        mNormalizedLabels.push_back(-1);
+    }
+          
     mTrained = true;
   }
 
   index getClusterSize(index cluster) const
   {
     index count = 0;
-    for (index i = 0; i < mAssignments.size(); i++)
+    for (index i = 0; i < mNormalizedLabels.size(); i++)
     {
-      if (mAssignments(i) == cluster) count++;
+      if (mNormalizedLabels
+          [i] == cluster) count++;
     }
     return count;
   }
@@ -95,20 +129,25 @@ public:
     mMeans = _impl::asEigen<Eigen::Array>(means);
     mDims = mMeans.cols();
     mK = mMeans.rows();
-    mEmpty = std::vector<bool>(asUnsigned(mK), false);
     mTrained = true;
   }
 
   index dims() const { return mMeans.cols(); }
   index size() const { return mMeans.rows(); }
   index getK() const { return mMeans.rows(); }
-  index nAssigned() const { return mAssignments.size(); }
+  index nAssigned() const { return mNormalizedLabels.size(); }
 
   void getAssignments(FluidTensorView<index, 1> out) const
   {
-    out <<= _impl::asFluid(mAssignments);
+    for (index i = 0; i < mNormalizedLabels.size(); i++)
+      out[i] = mNormalizedLabels[i];
   }
 
+  index numClusters() const
+  {
+    return mNumClusters;
+  }
+  
   void getDistances(RealMatrixView data, RealMatrixView out) const
   {
     Eigen::ArrayXXd points = _impl::asEigen<Eigen::Array>(data);
@@ -139,52 +178,14 @@ private:
     }
     return minK;
   }
-
-  Eigen::VectorXi assignClusters(Eigen::ArrayXXd dataPoints) const
-  {
-    Eigen::VectorXi assignments = Eigen::VectorXi::Zero(dataPoints.rows());
-    for (index i = 0; i < dataPoints.rows(); i++)
-    { assignments(i) = static_cast<int>(assignPoint(dataPoints.row(i))); }
-    return assignments;
-  }
-
-  void computeMeans(Eigen::ArrayXXd dataPoints)
-  {
-    using namespace Eigen;
-    for (index k = 0; k < mK; k++)
-    {
-      if (mEmpty[asUnsigned(k)]) continue;
-      std::vector<index> kAssignment;
-      for (index i = 0; i < mAssignments.size(); i++)
-      {
-        if (mAssignments(i) == k) kAssignment.push_back(i);
-      }
-      if (kAssignment.size() == 0)
-      {
-        std::cout << "Warning: empty cluster" << std::endl;
-        mEmpty[asUnsigned(k)] = true;
-        return;
-      }
-      ArrayXXd clusterPoints =
-          ArrayXXd::Zero(asSigned(kAssignment.size()), mDims);
-      for (index i = 0; asUnsigned(i) < kAssignment.size(); i++)
-      { clusterPoints.row(i) = dataPoints.row(kAssignment[asUnsigned(i)]); }
-      ArrayXd mean = clusterPoints.colwise().mean();
-      mMeans.row(k) = mean;
-    }
-  }
-
-  bool changed(Eigen::VectorXi newAssignments) const
-  {
-    auto dif = (newAssignments - mAssignments).cwiseAbs().sum();
-    return dif > 0;
-  }
+    
+  std::vector<int> mNormalizedLabels;
+  uint32_t mNoisyPoints;
+  uint32_t mNumClusters;
 
   index             mK{0};
   index             mDims{0};
   Eigen::ArrayXXd   mMeans;
-  std::vector<bool> mEmpty;
-  Eigen::VectorXi   mAssignments;
   bool              mTrained{false};
 };
 } // namespace algorithm
