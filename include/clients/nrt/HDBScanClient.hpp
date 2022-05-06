@@ -94,6 +94,7 @@ public:
     if (dataSet.size() == 0) return Error<IndexVector>(EmptyDataSet);
     auto labelsetClientPtr = labelsetClient.get().lock();
     if (!labelsetClientPtr) return Error<IndexVector>(NoLabelSet);
+    mAlgorithm.clear();
     mAlgorithm.train(dataSet, minPoints, minClusterSize);
     IndexVector assignments(dataSet.size());
     mAlgorithm.getAssignments(assignments);
@@ -228,13 +229,13 @@ public:
   {
     return defineMessages(
         makeMessage("fit", &HDBScanClient::fit),
-        makeMessage("predict", &HDBScanClient::predict),
-        makeMessage("transform", &HDBScanClient::transform),
-        makeMessage("predictPoint", &HDBScanClient::predictPoint),
-        makeMessage("transformPoint", &HDBScanClient::transformPoint),
-        makeMessage("fitTransform", &HDBScanClient::fitTransform),
-        makeMessage("getMeans", &HDBScanClient::getMeans),
-        makeMessage("setMeans", &HDBScanClient::setMeans),
+        //makeMessage("predict", &HDBScanClient::predict),
+        //makeMessage("transform", &HDBScanClient::transform),
+        //makeMessage("predictPoint", &HDBScanClient::predictPoint),
+        //makeMessage("transformPoint", &HDBScanClient::transformPoint),
+        //makeMessage("fitTransform", &HDBScanClient::fitTransform),
+        //makeMessage("getMeans", &HDBScanClient::getMeans),
+        //makeMessage("setMeans", &HDBScanClient::setMeans),
         makeMessage("fitPredict", &HDBScanClient::fitPredict),
         makeMessage("cols", &HDBScanClient::dims),
         makeMessage("clear", &HDBScanClient::clear),
