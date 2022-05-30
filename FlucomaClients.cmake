@@ -107,6 +107,7 @@ add_client(BufThreadDemo clients/nrt/FluidThreadTestClient.hpp CLASS NRTThreaded
 add_client(BufThresh clients/nrt/BufThreshClient.hpp CLASS NRTThreadedBufferThreshClient )
 add_client(BufTransientSlice clients/rt/TransientSliceClient.hpp CLASS NRTThreadedTransientSliceClient )
 add_client(BufTransients clients/rt/TransientClient.hpp CLASS NRTThreadedTransientsClient )
+add_client(DataNoveltyFeature clients/nrt/NoveltyDataClient.hpp CLASS NRTThreadedNoveltyDataClient )
 add_client(Chroma clients/rt/ChromaClient.hpp CLASS RTChromaClient )
 add_client(Gain clients/rt/GainClient.hpp CLASS RTGainClient NOINSTALL)
 add_client(HPSS clients/rt/HPSSClient.hpp CLASS RTHPSSClient )
