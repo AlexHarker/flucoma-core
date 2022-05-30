@@ -22,8 +22,8 @@ namespace hdbscan {
 
 constexpr auto HDBScanParams = defineParameters(
     StringParam<Fixed<true>>("name", "Name"),
-    LongParam("minPoints", "Min number of points in a cluster", 10, Min(1)),
-    LongParam("minClusterSize", "Min cluster size", 0, Min(0)));
+    LongParam("minSamples", "Min number of points in a cluster", 0, Min(0)),
+    LongParam("minClusterSize", "Min cluster size", 1, Min(1)));
 
 class HDBScanClient : public FluidBaseClient,
                      OfflineIn,
@@ -31,7 +31,7 @@ class HDBScanClient : public FluidBaseClient,
                      ModelObject,
                      public DataClient<algorithm::HDBScan>
 {
-  enum { kName, kMinPoints, kMinClusterSize };
+  enum { kName, kMinSamples, kMinClusterSize };
 
 public:
   using string = std::string;
@@ -71,13 +71,13 @@ public:
 
   MessageResult<IndexVector> fit(InputDataSetClientRef datasetClient)
   {
-    index minPoints = get<kMinPoints>();
+    index minSamples = get<kMinSamples>();
     index minClusterSize = get<kMinClusterSize>();
     auto  datasetClientPtr = datasetClient.get().lock();
     if (!datasetClientPtr) return Error<IndexVector>(NoDataSet);
     auto dataSet = datasetClientPtr->getDataSet();
     if (dataSet.size() == 0) return Error<IndexVector>(EmptyDataSet);
-    mAlgorithm.train(dataSet, minPoints, minClusterSize);
+    mAlgorithm.train(dataSet, minSamples ? minSamples : minClusterSize, minClusterSize);
     IndexVector assignments(dataSet.size());
     mAlgorithm.getAssignments(assignments);
     return getCounts(assignments);
@@ -86,16 +86,16 @@ public:
   MessageResult<IndexVector> fitPredict(InputDataSetClientRef  datasetClient,
                                         LabelSetClientRef labelsetClient)
   {
-    index minPoints = get<kMinPoints>();
+    index minSamples = get<kMinSamples>();
     index minClusterSize = get<kMinClusterSize>();
-    auto  datasetClientPtr = datasetClient.get().lock();
+    auto datasetClientPtr = datasetClient.get().lock();
     if (!datasetClientPtr) return Error<IndexVector>(NoDataSet);
     auto dataSet = datasetClientPtr->getDataSet();
     if (dataSet.size() == 0) return Error<IndexVector>(EmptyDataSet);
     auto labelsetClientPtr = labelsetClient.get().lock();
     if (!labelsetClientPtr) return Error<IndexVector>(NoLabelSet);
     mAlgorithm.clear();
-    mAlgorithm.train(dataSet, minPoints, minClusterSize);
+    mAlgorithm.train(dataSet, minSamples ? minSamples : minClusterSize, minClusterSize);
     IndexVector assignments(dataSet.size());
     mAlgorithm.getAssignments(assignments);
     StringVectorView ids = dataSet.getIds();
@@ -153,7 +153,7 @@ public:
   MessageResult<IndexVector> fitTransform(InputDataSetClientRef srcClient,
                                           DataSetClientRef dstClient)
   {
-    index minPoints = get<kMinPoints>();
+    index minSamples = get<kMinSamples>();
     index minClusterSize = get<kMinClusterSize>();
     auto  srcPtr = srcClient.get().lock();
     if (!srcPtr) return Error<IndexVector>(NoDataSet);
@@ -161,7 +161,7 @@ public:
     if (!destPtr) return Error<IndexVector>(NoDataSet);
     auto dataSet = srcPtr->getDataSet();
     if (dataSet.size() == 0) return Error<IndexVector>(EmptyDataSet);
-    mAlgorithm.train(dataSet, minPoints, minClusterSize);
+    mAlgorithm.train(dataSet, minSamples ? minSamples : minClusterSize, minClusterSize);
     IndexVector assignments(dataSet.size());
     mAlgorithm.getAssignments(assignments);
     transform(srcClient, dstClient);
