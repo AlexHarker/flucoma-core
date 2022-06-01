@@ -33,7 +33,7 @@ auto constexpr NoveltyDataParams = defineParameters(
  );
 
 
-class NoveltyDataClient: public FluidBaseClient, public OfflineIn, public OfflineOut
+class NoveltyFeatureDataClient: public FluidBaseClient, public OfflineIn, public OfflineOut
 {
 
 public:
@@ -41,7 +41,7 @@ public:
   using ParamDescType = decltype(NoveltyDataParams);
   using ParamSetViewType = ParameterSetView<ParamDescType>;
 
-  NoveltyDataClient(ParamSetViewType& p)
+  NoveltyFeatureDataClient(ParamSetViewType& p)
   : mParams{p}
   {}
 
@@ -150,7 +150,7 @@ public:
   std::reference_wrapper<ParamSetViewType> mParams;
 };
 
-using NRTThreadedNoveltyDataClient = NRTThreadingAdaptor<ClientWrapper<NoveltyDataClient>>;
+using NRTThreadedNoveltyFeatureDataClient = NRTThreadingAdaptor<ClientWrapper<NoveltyFeatureDataClient>>;
 
 } // namespace client
 } // namespace fluid
