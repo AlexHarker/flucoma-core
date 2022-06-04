@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithms/public/HDBScan.hpp>
 #include <algorithms/public/KDTree.hpp>
 #include <algorithms/public/KMeans.hpp>
 #include <algorithms/public/Normalization.hpp>
@@ -132,7 +133,32 @@ void from_json(const nlohmann::json &j, FluidDataSet<std::string, T, 1> &ds) {
   }
 }
 
+
 namespace algorithm {
+// HDBScan
+void to_json(nlohmann::json &j, const HDBScan &kmeans) {
+    RealMatrix means(kmeans.getK(), kmeans.dims());
+    kmeans.getMeans(means);
+    j["means"] = RealMatrixView(means);
+    j["rows"] = means.rows();
+    j["cols"] = means.cols();
+}
+
+bool check_json(const nlohmann::json &j, const HDBScan &) {
+    return fluid::check_json(j,
+                             {"rows", "cols", "means"},
+                             {JSONTypes::NUMBER, JSONTypes::NUMBER,JSONTypes::ARRAY}
+                             );
+}
+
+void from_json(const nlohmann::json &j, HDBScan &scan) {
+    index rows = j.at("rows").get<index>();
+    index cols = j.at("cols").get<index>();
+    RealMatrix means(rows, cols);
+    j.at("means").get_to(means);
+    scan.setMeans(means);
+}
+
 // KDTree
 void to_json(nlohmann::json &j, const KDTree &tree) {
   KDTree::FlatData treeData = tree.toFlat();

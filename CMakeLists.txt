@@ -38,6 +38,7 @@ include(FetchContent)
 set(HISS_PATH "" CACHE PATH "The path to a HISSTools_Library folder. Will pull from github if not set")
 set(EIGEN_PATH "" CACHE PATH "The path to an Eigen installation (>=3.3.5). Will pull from github if not set")
 set(SPECTRA_PATH "" CACHE PATH "The path to aa Spectra installation. Will pull from github if not set")
+set(HDBSCAN_CPP_PATH "" CACHE PATH "The path to a HDBSCAN_CPP installation. Will pull from github if not set")
 IF(APPLE)
   find_library(ACCELERATE Accelerate)
   IF (NOT ACCELERATE)
@@ -81,6 +82,13 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
+  hdbscan_cpp
+  GIT_SHALLOW TRUE
+  GIT_REPOSITORY https://github.com/rohanmohapatra/hdbscan-cpp
+  GIT_PROGRESS TRUE
+)
+
+FetchContent_Declare(
   json 
   GIT_SHALLOW TRUE
   # GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -103,6 +111,10 @@ if(SPECTRA_PATH) #if spectra path is set, this will stop it downloading
   get_filename_component(FETCHCONTENT_SOURCE_DIR_SPECTRA ${SPECTRA_PATH} ABSOLUTE)
 endif()
 
+if(HDBSCAN_CPP_PATH) #if eigen path is set, this will stop it downloading
+  get_filename_component(FETCHCONTENT_SOURCE_DIR_HDBSCAN_CPP ${HDBSCAN_CPP_PATH} ABSOLUTE)
+endif()
+
 if(JSON_PATH)
   get_filename_component(FETCHCONTENT_SOURCE_DIR_JSON ${JSON_PATH} ABSOLUTE)  
 endif()
@@ -120,6 +132,11 @@ endif()
 FetchContent_GetProperties(Spectra)
 if(NOT spectra_POPULATED)
   FetchContent_Populate(Spectra)
+endif()
+
+FetchContent_GetProperties(hdbscan_cpp)
+if(NOT hdbscan_cpp_POPULATED)
+  FetchContent_Populate(hdbscan_cpp)
 endif()
 
 set(OPTIONAL_BUILD_PACKAGE OFF CACHE BOOL "" FORCE)
@@ -172,6 +189,26 @@ add_library(
   "${hisstools_SOURCE_DIR}/AudioFile/OAudioFile.cpp"
 )
 
+# hdbscan CPP Target
+add_library(
+  hdbscan_cpp STATIC 
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Distance/EuclideanDistance.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Distance/IDistanceCalculator.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Distance/ManhattanDistance.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Hdbscan/hdbscan.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/HdbscanStar/cluster.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/HdbscanStar/hdbscanAlgorithm.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/HdbscanStar/hdbscanConstraint.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/HdbscanStar/outlierScore.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/HdbscanStar/undirectedGraph.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Runner/hdbscanParameters.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Runner/hdbscanResult.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Runner/hdbscanRunner.cpp"
+  "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/Utils/bitSet.cpp"
+)
+
+target_include_directories(hdbscan_cpp PUBLIC "${hdbscan_cpp_SOURCE_DIR}/HDBSCAN-CPP/")
+
 #Fluid Decomposition header-only target
 add_library(FLUID_DECOMPOSITION INTERFACE)
 
@@ -187,6 +224,7 @@ target_include_directories(
 target_link_libraries(
   FLUID_DECOMPOSITION INTERFACE 
   HISSTools_FFT 
+  hdbscan_cpp
   flucoma_VERSION_LIB 
   tl::optional
   nlohmann_json::nlohmann_json
@@ -212,6 +250,7 @@ if(APPLE)
   #targeting <= 10.9, need to really emphasise that we want libc++ both to compiler and linker
   target_compile_options(HISSTools_FFT PUBLIC -stdlib=libc++)
   target_compile_options(HISSTools_AudioFile PUBLIC -stdlib=libc++)
+  target_compile_options(hdbscan_cpp PUBLIC -stdlib=libc++)
   target_compile_options(FLUID_DECOMPOSITION INTERFACE -stdlib=libc++)
   target_link_libraries(FLUID_DECOMPOSITION INTERFACE -stdlib=libc++)
 endif()
@@ -220,6 +259,7 @@ endif()
 if(DEFINED FLUID_ARCH)
   target_compile_options(HISSTools_FFT PUBLIC ${FLUID_ARCH})
   target_compile_options(HISSTools_AudioFile PUBLIC ${FLUID_ARCH})
+  target_compile_options(HDBSCAN_CPP PUBLIC ${FLUID_ARCH})
   target_compile_options(FLUID_DECOMPOSITION INTERFACE ${FLUID_ARCH})
 endif()
 
