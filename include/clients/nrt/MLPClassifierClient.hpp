@@ -210,14 +210,16 @@ public:
     return OK();
   }
 
-  MessageResult<string> predictPoint(InputBufferPtr in)
+  MessageResult<std::tuple<string, double, double>> predictPoint(InputBufferPtr in)
   {
-    if (!in) return Error<string>(NoBuffer);
+    using ErrorType = std::tuple<string, double, double>;
+      
+    if (!in) return Error<ErrorType>(NoBuffer);
     BufferAdaptor::ReadAccess inBuf(in.get());
-    if (!inBuf.exists()) return Error<string>(InvalidBuffer);
+    if (!inBuf.exists()) return Error<ErrorType>(InvalidBuffer);
     if (inBuf.numFrames() != mAlgorithm.mlp.dims())
-      return Error<string>(WrongPointSize);
-    if (!mAlgorithm.mlp.trained()) return Error<string>(NoDataFitted);
+      return Error<ErrorType>(WrongPointSize);
+    if (!mAlgorithm.mlp.trained()) return Error<ErrorType>(NoDataFitted);
 
     index      layer = mAlgorithm.mlp.size();
     RealVector src(mAlgorithm.mlp.dims());
@@ -243,31 +245,6 @@ public:
         makeMessage("dump", &MLPClassifierClient::dump),
         makeMessage("write", &MLPClassifierClient::write),
         makeMessage("read", &MLPClassifierClient::read));
-  }
-
-  MessageResult<void> read(string fileName)
-  {
-    auto readResult = DataClient::read(fileName);
-    
-    if (readResult.ok())
-    {
-      const index nLayers = mAlgorithm.size();
-      FluidTensor<index, 1> layersParam(nLayers - 1);
-      
-      if (nLayers > 1)
-      {
-        for(index i = 0;  i < nLayers - 1; ++i)
-          layersParam[i] = mAlgorithm.layerSize(i + 1);
-      }
-      
-      index act = mAlgorithm.activation();
-
-      auto& params = mParams.get();
-      params.template set<kHidden>(std::move(layersParam),nullptr);
-      params.template set<kActivation>(std::move(act),nullptr);
-    }
-    
-    return readResult;
   }
     
 private:
