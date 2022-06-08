@@ -28,6 +28,8 @@ struct MLPClassifierData
   algorithm::LabelSetEncoder encoder;
   index                      size() const { return mlp.size(); }
   index                      dims() const { return mlp.dims(); }
+  index                      layerSize(index idx) const { return mlp.outputSize(idx); }
+  index                      activation() const { return mlp.mLayers[0].getActType(); }
   void                       clear()
   {
     mlp.clear();
@@ -223,7 +225,9 @@ public:
     src <<= inBuf.samps(0, mAlgorithm.mlp.dims(), 0);
     mAlgorithm.mlp.processFrame(src, dest, 0, layer);
     auto label = mAlgorithm.encoder.decodeOneHot(dest);
-    return label;
+    double max = *std::max_element(dest.begin(), dest.end());
+    double sum = std::accumulate(dest.begin(), dest.end(), 0.0);
+    return std::make_tuple(label, max, max/sum);
   }
 
   static auto getMessageDescriptors()
@@ -241,6 +245,31 @@ public:
         makeMessage("read", &MLPClassifierClient::read));
   }
 
+  MessageResult<void> read(string fileName)
+  {
+    auto readResult = DataClient::read(fileName);
+    
+    if (readResult.ok())
+    {
+      const index nLayers = mAlgorithm.size();
+      FluidTensor<index, 1> layersParam(nLayers - 1);
+      
+      if (nLayers > 1)
+      {
+        for(index i = 0;  i < nLayers - 1; ++i)
+          layersParam[i] = mAlgorithm.layerSize(i + 1);
+      }
+      
+      index act = mAlgorithm.activation();
+
+      auto& params = mParams.get();
+      params.template set<kHidden>(std::move(layersParam),nullptr);
+      params.template set<kActivation>(std::move(act),nullptr);
+    }
+    
+    return readResult;
+  }
+    
 private:
 
   ParameterTrackChanges<index, index, IndexVector, index> mTracker;
