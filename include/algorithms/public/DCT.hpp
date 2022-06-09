@@ -36,6 +36,8 @@ public:
   {
     using namespace std;
     assert(inputSize >= outputSize);
+    assert(inputSize <= mMaxInputSize);
+    assert(outputSize <= mMaxOutputSize);
     mInputSize = inputSize;
     mOutputSize = outputSize;
     mTable = mTableStorage.block(0, 0, mOutputSize, mInputSize);
