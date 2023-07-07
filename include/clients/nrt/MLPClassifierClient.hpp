@@ -26,10 +26,10 @@ struct MLPClassifierData
 {
   algorithm::MLP             mlp;
   algorithm::LabelSetEncoder encoder;
-  index                      size() { return mlp.size(); }
-  index                      dims() { return mlp.dims(); }
-  index                      layerSize(index idx) { return mlp.outputSize(idx); }
-  index                      activation() { return mlp.mLayers[0].getActType(); }
+  index                      size() const { return mlp.size(); }
+  index                      dims() const { return mlp.dims(); }
+  index                      layerSize(index idx) const { return mlp.outputSize(idx); }
+  index                      activation() const { return mlp.mLayers[0].getActType(); }
   void                       clear()
   {
     mlp.clear();
