@@ -225,7 +225,7 @@ public:
     RealVector dest(mAlgorithm.mlp.outputSize(layer));
     src = inBuf.samps(0, mAlgorithm.mlp.dims(), 0);
     mAlgorithm.mlp.processFrame(src, dest, 0, layer);
-    auto label = mAlgorithm.encoder.decodeOneHot(dest);
+    auto& label = mAlgorithm.encoder.decodeOneHot(dest);
     double max = *std::max_element(dest.begin(), dest.end());
     double sum = std::accumulate(dest.begin(), dest.end(), 0.0);
     return std::make_tuple(label, max, max/sum);
@@ -360,7 +360,7 @@ public:
       src = BufferAdaptor::ReadAccess(get<kInputBuffer>().get())
                 .samps(0, dims, 0);
       algorithm.mlp.processFrame(src, dest, 0, layer);
-      auto label = algorithm.encoder.decodeOneHot(dest);
+      auto& label = algorithm.encoder.decodeOneHot(dest);
       outBuf.samps(0)[0] =
           static_cast<double>(algorithm.encoder.encodeIndex(label));
     }
