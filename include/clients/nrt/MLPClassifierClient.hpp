@@ -225,7 +225,36 @@ public:
     src <<= inBuf.samps(0, mAlgorithm.mlp.dims(), 0);
     mAlgorithm.mlp.processFrame(src, dest, 0, layer);
     auto& label = mAlgorithm.encoder.decodeOneHot(dest);
-    double max = *std::max_element(dest.begin(), dest.end());
+    auto index = mAlgorithm.encoder.encodeIndex(label);
+    double max = dest[index];
+    double sum = std::accumulate(dest.begin(), dest.end(), 0.0);
+    return std::make_tuple(label, max, max/sum);
+  }
+
+  MessageResult<std::tuple<string, double, double>> predictPointFilter(InputBufferPtr in, InputLabelSetClientRef filtersetClient)
+  {
+    auto filtersetClientPtr = filtersetClient.get().lock();
+    
+    if (!filtersetClientPtr) return Error<std::tuple<string, double, double>>(NoLabelSet);
+    
+    using ErrorType = std::tuple<string, double, double>;
+      
+    if (!in) return Error<ErrorType>(NoBuffer);
+    BufferAdaptor::ReadAccess inBuf(in.get());
+    if (!inBuf.exists()) return Error<ErrorType>(InvalidBuffer);
+    if (inBuf.numFrames() != mAlgorithm.mlp.dims())
+      return Error<ErrorType>(WrongPointSize);
+    if (!mAlgorithm.mlp.trained()) return Error<ErrorType>(NoDataFitted);
+    
+    index      layer = mAlgorithm.mlp.size();
+    RealVector src(mAlgorithm.mlp.dims());
+    RealVector dest(mAlgorithm.mlp.outputSize(layer));
+    src <<= inBuf.samps(0, mAlgorithm.mlp.dims(), 0);
+    mAlgorithm.mlp.processFrame(src, dest, 0, layer);
+    
+    auto& label = mAlgorithm.encoder.decodeOneHot(dest, filtersetClientPtr->getLabelSet());
+    auto index = mAlgorithm.encoder.encodeIndex(label);
+    double max = dest[index];
     double sum = std::accumulate(dest.begin(), dest.end(), 0.0);
     return std::make_tuple(label, max, max/sum);
   }
@@ -236,6 +265,7 @@ public:
         makeMessage("fit", &MLPClassifierClient::fit),
         makeMessage("predict", &MLPClassifierClient::predict),
         makeMessage("predictPoint", &MLPClassifierClient::predictPoint),
+        makeMessage("predictPointFilter", &MLPClassifierClient::predictPointFilter),
         makeMessage("clear", &MLPClassifierClient::clear),
         makeMessage("cols", &MLPClassifierClient::dims),
         makeMessage("size", &MLPClassifierClient::size),

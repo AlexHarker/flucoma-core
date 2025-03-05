@@ -87,6 +87,27 @@ public:
     assert(maxIndex < mLabels.size());
     return mLabels(maxIndex);
   }
+    
+  std::string const& decodeOneHot(RealVectorView in, const LabelSet& filter) const
+  {
+    double maxVal = 0;
+    index  maxIndex = 0;
+    for (index i = 0; i < in.size(); i++)
+    {
+      if (in(i) > maxVal)
+      {
+        if (!filter.size() || filter.getIndex(mLabels(i)) != -1)
+        {
+            maxIndex = i;
+            maxVal = in(i);
+        }
+      }
+    }
+        
+    assert(maxIndex < mLabels.size());
+    return mLabels(maxIndex);
+  }
+  
   index numLabels() const { return mNumLabels; }
 
   // from JSON: expecting unique labels, as opposed to fit
